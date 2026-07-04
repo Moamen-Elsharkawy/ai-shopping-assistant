@@ -1,0 +1,575 @@
+{
+  "name": "lec 8 - upload KB",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        96
+      ],
+      "id": "e01052f8-d456-4ede-8321-66aae4aeb41c",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        656,
+        96
+      ],
+      "id": "fbc84295-47bf-4900-b6b8-b0838745306e",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "dimensions": 1536
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        288
+      ],
+      "id": "416386a9-9631-4ea8-ad0c-5463a5a56ef7",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $('Split Out').item.json.chunck }}",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "product_code",
+                "value": "={{ $('Split Out').item.json.product_code }}"
+              },
+              {
+                "name": "file_name",
+                "value": "={{ $('Merge').item.json.file_name }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        240
+      ],
+      "id": "d108b795-d8bc-42c2-a89a-45c5fafd69c1",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "chunkSize": "=200000",
+        "chunkOverlap": 50,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        896,
+        368
+      ],
+      "id": "fb2315da-5a28-42bd-902f-ec38776690af",
+      "name": "Recursive Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.file_id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -144,
+        96
+      ],
+      "id": "82642010-81b3-45d6-a174-722d264d2cf9",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1LmoSNoCfOSyOvv6wlKVUQzRwpL2SeIGk",
+          "mode": "list",
+          "cachedResultName": "products kb",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1LmoSNoCfOSyOvv6wlKVUQzRwpL2SeIGk"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        80
+      ],
+      "id": "c8e9da0a-9751-4531-9e3a-d7ad8ebb9c2b",
+      "name": "Products kb",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.data }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a part of out RAG pipeline. your role is to chunck text.\nyou get our products text. chunck it following these rules:\n** each product is in a separated chunck.\n** no chunck contains more than one product\n** all products details are in only one chunck\n** extract product code\n\n##OUTPUT (Strict JSON)\n\n{\n\"chuncks:\": [\n  {\n    \"chunck\":\"\", \"product_code\":\"\"\n  },\n  {\n    \"chunck\":\"\", \"product_code\":\"\"\n  }\n]}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        192,
+        96
+      ],
+      "id": "c4bf78b1-9d9a-4c30-9484-56fcdbe13358",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\"chuncks:\": [\n  {\n    \"chunck\":\"\", \"product_code\":\"\"\n  },\n  {\n    \"chunck\":\"\", \"product_code\":\"\"\n  }\n]}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        304
+      ],
+      "id": "9ccef2fd-3336-4d09-af80-439e446ba7c9",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseFormat": "json_object"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        176,
+        288
+      ],
+      "id": "8f1cd8d5-e90c-4eef-8df8-e3d4b0a41f36",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output['chuncks:']",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        480,
+        96
+      ],
+      "id": "ec92c89a-d753-4ffc-93a7-4676ef632c22",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1LmoSNoCfOSyOvv6wlKVUQzRwpL2SeIGk",
+          "mode": "list",
+          "cachedResultName": "products kb",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1LmoSNoCfOSyOvv6wlKVUQzRwpL2SeIGk"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        272
+      ],
+      "id": "0b90b879-3283-4b46-b3d9-ee6b3b6a9a25",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "documents",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "file_name",
+              "condition": "eq",
+              "keyValue": "={{ $json.name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        272
+      ],
+      "id": "3e8258f8-e01e-4515-b005-61cc0968c184",
+      "name": "Delete a row",
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        272
+      ],
+      "id": "7b34cc7d-3d2d-48ad-8b25-b5395b0997ee",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "19631ae5-a7cd-4d08-a8e8-ff05b357e023",
+              "name": "file_id",
+              "value": "={{ $('Google Drive Trigger').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "951a9652-e176-4d9f-b281-d30f24fec2d3",
+              "name": "file_name",
+              "value": "={{ $('Google Drive Trigger').item.json.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -432,
+        272
+      ],
+      "id": "54b8c93b-602d-4255-a59f-6d2554f12e18",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3e31c13a-f0e4-48b5-8522-143b223ced79",
+              "name": "file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "57f5247a-edf3-471c-a791-e5e2072ec365",
+              "name": "file_name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -576,
+        80
+      ],
+      "id": "689bab0e-9f62-4d93-814f-7c719b499f83",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -320,
+        96
+      ],
+      "id": "6aa2b8ca-dc7f-42df-9c23-3eb95f860795",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Products kb": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Delete a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a row": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "9YsBtyBlwNsWNLU5",
+  "tags": [
+    {
+      "updatedAt": "2026-04-08T13:48:52.844Z",
+      "createdAt": "2026-04-08T13:48:52.844Z",
+      "id": "cKUviWqP7KgroMNd",
+      "name": "Agentic AI Course"
+    }
+  ]
+}

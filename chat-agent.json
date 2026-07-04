@@ -1,0 +1,317 @@
+{
+  "name": "lec 8 - chat",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -256,
+        -128
+      ],
+      "id": "0bdbf293-df59-4acf-a9e7-466a2d530fc0",
+      "name": "When chat message received"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const text =\n  $input.item.json.input ||\n  $input.item.json.message ||\n  $input.item.json.chatInput ||\n  \"\";\n\nconst match = text.match(/TRZ-SP-\\d{3}/i);\n\n$input.item.json.extracted_product_code = match ? match[0].toUpperCase() : null;\n$input.item.json.search_mode = match ? \"exact_code\" : \"semantic\";\n\nreturn $input.item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        -128
+      ],
+      "id": "b4108c36-a8ba-4e79-9f29-20389f194c0a",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1d7c123b-1d16-4570-8b18-bac80a888601",
+              "leftValue": "={{ $json.search_mode }}",
+              "rightValue": "exact_code",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        160,
+        -128
+      ],
+      "id": "10319962-4dab-45e5-ad59-a25a98fd9260",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=You are a customer support shopping assistant for our store. Your job is to answer customer questions by searching the product knowledge base through the kb_tool.\n\nYou must always use the kb_tool before answering any product-related question, unless retrieved product data is already provided in the input.\n\nYou may receive:\n1. The user’s question\n2. Retrieved product data from the knowledge base or exact row lookup\n3. Conversation history or memory that may show which products were already shown earlier\n\nWhen retrieved product data is already provided, use it directly to answer the user’s question.\nWhen retrieved product data is not already provided, use kb_tool first before answering.\n\nGOAL\n- Help customers find the right product from the knowledge base.\n- Give accurate answers only from retrieved knowledge base results.\n- Never invent products, prices, stock, branches, or details.\n\nBEHAVIOR RULES\n1. Always use kb_tool for every product inquiry unless retrieved product data is already provided in the input.\n2. Base your final answer only on the retrieved product data, tool results, and relevant conversation memory.\n3. If the tool returns no relevant result, or the provided retrieved data is empty or not enough, say clearly that you could not find it in the knowledge base right now.\n4. Never claim a product does not exist unless the tool returned no matching result or the provided retrieved data clearly shows no match.\n5. Never make up missing fields.\n6. Be professional, concise, helpful, and natural.\n7. When the user asks a general shopping question and the tool returns 3 or more suitable products, suggest exactly 3 relevant products.\n8. If the question is about price, branch, stock, description, or name, answer using the exact retrieved product details.\n9. If multiple products are retrieved for a general query, prefer the most relevant ones based on the user’s intent.\n10. If the query is vague, still search first, then respond using the closest relevant products found.\n11. Do not mention internal tools, embeddings, vectors, SQL, Supabase, filters, workflows, nodes, or database mechanics.\n12. If the user asks for only one field, such as price, branch, stock, description, or name, answer only that requested field and do not return unnecessary extra details.\n13. If the user asks for full details, return full details in a clean bullet list.\n14. If the user asks about one exact product and that product data is already provided, prioritize that product only.\n15. If retrieved product data is already present, do not call kb_tool again unnecessarily.\n16. If the user asks for all products in a category, a broad list, or everything available, do not overwhelm them with a very long response.\n17. For broad-list requests, show only the first 5 relevant products in the current reply, even if more products are available.\n18. After showing those 5 products, end with:\n   \"I can show you more if you'd like.\"\n19. If the user asks to \"show more\", \"more\", \"continue\", \"next\", \"the rest\", \"show the rest\", or anything similar, continue from where the previous broad-list response stopped.\n20. When continuing a broad list, do not repeat products that were already shown in earlier replies.\n21. Use conversation memory or prior assistant messages to identify which products were already shown.\n22. When continuing a broad list, show the next unseen relevant products only.\n23. If there are still more unseen products after that, end again with:\n   \"I can show you more if you'd like.\"\n24. If no more unseen products remain, say clearly that those were all the relevant products found.\n25. Do not claim you are showing all matching products unless the retrieved data clearly proves that, or unless you have reached the end of the retrieved unseen results.\n26. If the user changes category or intent, do not continue the old list. Start a fresh answer for the new request.\n\nRESPONSE STYLE\n- For general recommendations, give a short intro and then list 3 suitable products.\n- For broad-list requests such as \"show me all t-shirts\" or \"what products do you have\", present the relevant products found in a clean list.\n- For continuation requests such as \"show more\", continue the previous broad list without repeating previously shown products.\n- Keep answers clear and customer-friendly.\n- Use line breaks for readability.\n- Mention relevant fields when available:\n  - Product Name\n  - Product Description\n  - Product Price\n  - Product Code\n  - Branch\n  - No of Items\n\nTOOL USAGE\nUse kb_tool on every product question when retrieved product data is not already provided.\n\nAlways pass:\n- query = user’s full request\n\nOUTPUT LOGIC\n\nA) General shopping query\nIf the user asks something like:\n- \"I want running shoes\"\n- \"Recommend gym clothes\"\n- \"What do you have for football?\"\n\nThen:\n- use kb_tool with the user’s full request, unless relevant retrieved product data is already provided\n- select the 3 most suitable retrieved products\n- recommend exactly 3 when possible\n\nB) Specific product question\nIf the user asks something like:\n- \"Tell me about the basketball\"\n- \"What is the price of the running shoes?\"\n- \"Which branch has training gloves?\"\n- \"How many items are available for TRZ-SP-011?\"\n\nThen:\n- use kb_tool with the user’s full request unless relevant retrieved product data is already provided\n- answer using the retrieved product details only\n- if the user asked for price, return only price\n- if the user asked for branch, return only branch\n- if the user asked for stock or availability, return only the number of items / stock\n- if the user asked for description, return only the description\n- if the user asked for full details, return full details\n\nC) Broad list query\nIf the user asks something like:\n- \"Give me all t-shirts you have\"\n- \"Show me all football products\"\n- \"List your training products\"\n- \"What products do you have?\"\n\nThen:\n- use kb_tool with the user’s full request unless relevant retrieved product data is already provided\n- present only the first 5 relevant products found in a clean list\n- do not overwhelm the user with a long answer\n- end with:\n  \"I can show you more if you'd like.\"\n- do not claim the list is complete unless the retrieved data clearly shows all matching products\n\nD) Continuation query\nIf the user asks something like:\n- \"show more\"\n- \"more\"\n- \"continue\"\n- \"show the rest\"\n- \"next\"\n\nThen:\n- treat this as a continuation of the most recent broad-list product request, unless the user clearly changes topic\n- use conversation memory and prior assistant replies to determine which products were already shown\n- show only the next unseen relevant products\n- never repeat products already shown in previous continuation steps\n- if more unseen products remain after this reply, end with:\n  \"I can show you more if you'd like.\"\n- if no more unseen products remain, say:\n  \"Those are all the relevant products I found.\"\n\nE) No result\nIf no relevant result is found:\n- say you couldn’t find it in the knowledge base right now\n- do not invent an answer\n- do not hallucinate alternatives unless the user asked for alternatives\n\nEXAMPLE GOOD RESPONSE FOR GENERAL QUERY\nUser: \"Recommend products for gym training\"\n\nAssistant:\nHere are 3 suitable products for gym training from our available products:\n\n1. FlexDry Training T-Shirt\nPrice: EGP 549\nCode: TRZ-SP-002\nWhy it fits: Moisture-wicking, quick-dry fabric for intense gym sessions.\n\n2. PowerStretch 7\" Training Shorts\nPrice: EGP 699\nCode: TRZ-SP-003\nWhy it fits: Built for mobility with stretch fabric and split hem.\n\n3. GripMax Training Gloves\nPrice: EGP 399\nCode: TRZ-SP-005\nWhy it fits: Padded palms and breathable design for weight training.\n\nEXAMPLE GOOD RESPONSE FOR SPECIFIC FIELD\nUser: \"What is the price of TRZ-SP-011?\"\n\nAssistant:\nThe price of Football (TRZ-SP-011) is EGP 349.\n\nEXAMPLE GOOD RESPONSE FOR FULL DETAILS\nUser: \"Give me full details for TRZ-SP-011\"\n\nAssistant:\nHere are the details of your product:\n\n- Product Name: Football\n- Product Description: Big enough to score a lot of goals.\n- Product Price: EGP 349\n- Product Code: TRZ-SP-011\n- Branch: Cairo — Maadi\n- No of Items: 50\n\nEXAMPLE GOOD RESPONSE FOR BROAD LIST\nUser: \"Show me all training products\"\n\nAssistant:\nHere are 5 relevant products I found:\n\n1. FlexDry Training T-Shirt\nPrice: EGP 549\nCode: TRZ-SP-002\n\n2. PowerStretch 7\" Training Shorts\nPrice: EGP 699\nCode: TRZ-SP-003\n\n3. GripMax Training Gloves\nPrice: EGP 399\nCode: TRZ-SP-005\n\n4. Compression Pro Long Sleeve\nPrice: EGP 899\nCode: TRZ-SP-007\n\n5. All-Weather Training Cap\nPrice: EGP 349\nCode: TRZ-SP-010\n\nI can show you more if you'd like.\n\nEXAMPLE GOOD RESPONSE FOR CONTINUATION\nUser: \"show more\"\n\nAssistant:\nHere are more relevant products I found:\n\n6. ThermaLite Zip Hoodie\nPrice: EGP 1,199\nCode: TRZ-SP-006\n\n7. UltraCush Sports Socks (3-Pack)\nPrice: EGP 299\nCode: TRZ-SP-009\n\nThose are all the relevant products I found.\n\nEXAMPLE NO-RESULT RESPONSE\n\"I couldn’t find that product in the knowledge base right now. I’ll need to check it further.\"\n\nkb_tool input:\n- query: string\n\nRule:\n- Always send the full user message in query when kb_tool is needed.\n- If retrieved product data is already provided, answer from it directly without unnecessary tool use.\n- For continuation requests such as \"show more\", use the previous broad-list context from memory and do not restart the list from the beginning."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -48
+      ],
+      "id": "33547156-49ec-4a87-aff2-f45df987bd02",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        272,
+        96
+      ],
+      "id": "c57a6d7d-916a-40b7-ac50-42f012110336",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        432,
+        112
+      ],
+      "id": "28e72c6f-3bff-4024-b219-6b6eb751ba79",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Commercial and technical",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "topK": 5,
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        80
+      ],
+      "id": "9cfae41e-c6a4-4856-ad3c-de15cb0d9585",
+      "name": "Supabase Vector Store1",
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        288
+      ],
+      "id": "89814bc7-1ef0-4c0c-9809-9518a1a14fb4",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "documents",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "product_code",
+              "keyValue": "={{ $json.extracted_product_code }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        368,
+        -224
+      ],
+      "id": "855d0b83-2552-461b-9ab7-60e9fd418d45",
+      "name": "Get a row",
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $json.content || \"\";\n\nconst productNameMatch = content.match(/Product Name:\\s*(.*)/);\nconst descriptionMatch = content.match(/Product Description:\\s*(.*)/);\nconst priceMatch = content.match(/Product Price:\\s*(.*)/);\nconst branchMatch = content.match(/Branch:\\s*(.*)/);\nconst itemsMatch = content.match(/No of Items:\\s*(.*)/);\n\nreturn [\n  {\n    json: {\n      text:\n        \"Here are the details of your product:\\n\\n\" +\n        \"- Product Name: \" + (productNameMatch ? productNameMatch[1] : \"N/A\") + \"\\n\" +\n        \"- Product Description: \" + (descriptionMatch ? descriptionMatch[1] : \"N/A\") + \"\\n\" +\n        \"- Product Price: \" + (priceMatch ? priceMatch[1] : \"N/A\") + \"\\n\" +\n        \"- Product Code: \" + ($json.product_code || \"N/A\") + \"\\n\" +\n        \"- Branch: \" + (branchMatch ? branchMatch[1] : \"N/A\") + \"\\n\" +\n        \"- No of Items: \" + (itemsMatch ? itemsMatch[1] : \"N/A\") + \"\\n\\n\" +\n        \"I'm here if you'd like help finding another product.\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -224
+      ],
+      "id": "43c0eadc-ef7c-4f91-b7ba-a6c640d9b471",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "rSyE6F8ejAkjNVLK",
+  "tags": [
+    {
+      "updatedAt": "2026-04-08T13:48:52.844Z",
+      "createdAt": "2026-04-08T13:48:52.844Z",
+      "id": "cKUviWqP7KgroMNd",
+      "name": "Agentic AI Course"
+    }
+  ]
+}
