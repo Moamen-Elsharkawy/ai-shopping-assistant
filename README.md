@@ -1,15 +1,48 @@
 # AI Shopping Assistant
 
-An agentic product-search assistant with a dual-mode retrieval router: exact product-code lookups hit the database directly, everything else goes through semantic RAG search, over a catalog that updates itself.
+Agentic product search that answers shopper questions over a self-updating catalog, with exact code lookups plus semantic RAG.
 
-**Demo video:** https://youtu.be/POsvx4is3UU
+![AI Shopping Assistant](https://raw.githubusercontent.com/Moamen-Elsharkawy/portfolio-assets/main/covers/shopping-assistant.png)
+
+**[Watch the demo](https://youtu.be/POsvx4is3UU)**
+
+## The problem
+
+Shoppers ask about products in two very different ways: some type the exact product code they want, most describe what they are looking for in their own words. A single search method serves one group and fails the other. On top of that, keeping the product catalog in sync with a changing inventory is slow, manual work that quickly goes stale.
 
 ## What it does
 
 - Answers customer product questions over a Supabase Vector catalog
-- Routes queries by intent: regex-detected product codes get an exact row lookup; natural-language questions get semantic retrieval
+- Routes queries by intent: regex-detected product codes get an exact row lookup, natural-language questions get semantic retrieval
 - Keeps the catalog current: a pipeline watches a Drive folder, chunks and embeds each new or changed file automatically
 - Returns paginated results for large matches
+
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph ingest [Self-updating catalog pipeline]
+        D[Drive catalog folder] --> CH[Chunk new or changed files]
+        CH --> EM[Embed with OpenAI]
+        EM --> DB[(Supabase Vector catalog)]
+    end
+
+    subgraph agent [Conversational agent]
+        U[Customer via Telegram] --> RT{Dual-mode router by intent}
+        RT -->|Product code| EX[Exact row lookup]
+        RT -->|Natural language| SE[Semantic RAG retrieval]
+        EX --> PG[Paginated results]
+        SE --> PG
+        PG --> U
+    end
+
+    DB --> EX
+    DB --> SE
+```
+
+## Stack
+
+n8n, Supabase Vector, OpenAI (chat + embeddings), RAG, Telegram.
 
 ## Workflows
 
@@ -17,10 +50,6 @@ An agentic product-search assistant with a dual-mode retrieval router: exact pro
 |---|---|
 | `chat-agent.json` | The conversational agent with the dual-mode retrieval router |
 | `kb-ingestion.json` | Self-updating catalog pipeline (watch folder, chunk, embed, upsert) |
-
-## Stack
-
-n8n, Supabase Vector, OpenAI (chat + embeddings), RAG, Telegram.
 
 ## Import and setup
 
@@ -31,6 +60,10 @@ n8n, Supabase Vector, OpenAI (chat + embeddings), RAG, Telegram.
 ## Note on redaction
 
 All credentials, webhook IDs, and file IDs have been replaced with self-describing placeholders. The workflow logic is exactly what runs in the demo.
+
+## License
+
+Released under the MIT License. See [LICENSE](LICENSE).
 
 ---
 
