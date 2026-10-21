@@ -1,5 +1,14 @@
 # AI Shopping Assistant
 
+## Project status and evidence
+
+**Portfolio build.** Personal technical reference; no measured retailer support outcome or current stock/price guarantee.
+
+**My contribution:** Implemented exact catalog lookup, semantic retrieval, ingestion and conversational result pagination.
+
+**Verification:** Recorded demonstration and public workflow exports.
+
+
 Agentic product search that answers shopper questions over a self-updating catalog, with exact code lookups plus semantic RAG.
 
 ![AI Shopping Assistant](https://raw.githubusercontent.com/Moamen-Elsharkawy/portfolio-assets/main/covers/shopping-assistant.png)
